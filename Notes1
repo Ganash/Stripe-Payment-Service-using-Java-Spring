@@ -1,0 +1,159 @@
+## Payment Service:
+
+Q) To create an order then the request will be sent to whom? Will it send to payment service?
+A) May be there might be an order service. The order service will receive the payment request.
+
+So,
+## Create an Order: OrderService
+
+----------------------
+
+Q) Now after the order created, the client ask the request to do what? does the client takes the card number, cvv number to the payment service or ask the payment service to do something else?
+A) It asks the payment service to create the payment link
+
+So,
+## Get Payment Link to Pay for that order: PaymentService
+
+-----------------------
+
+In PaymentController.java:
+
+Q) To create a Payment link what are do you think the PaymentController asks from client?
+A) Answers from students:
+1. At least the orderId.
+2. Utsav is saying amount,
+
+Naman discussion about utsav answer:
+but in previous class naman discussed that why client should not send amount because if the client is sending the amount then it can be tampered or bypass the amount. For Example, I order Iphone from amazon and I see the request of payment and change that amount to one rupee, so I bought Iphone for one rupee. Is that okay? Buying Iphone for one rupee is that okay. So this is a very bad idea. So createPaymentLink will typically asks the order id from the client. So Lets create DTOs
+
+So we are creating package dtos and CreatePaymentLinkRequestDto
+
+@Getter
+@Setter
+public class CreatePaymentLinkRequestDto {
+
+    private Long orderId;
+}
+
+
+----------------------------------------------------------------------
+
+Q) What does the controller typically do? what does any controller typically do?
+A) Controller at the end typically calls the service. The orderId should be obviously receives from the client then the paymentservice makes a call to the orderservice and it will get all the details of the orders from the orderservice like 'what are the amounts, what are the products etc'. so The client will just sends the orderId and everything else will be receiving from orderservice.
+
+Q) What if orderservice also sends the amount?
+A) orderservice will definitely send the amount but you own the orderservice, so you would have computed the amount because orderservice is not a third party.
+
+Closure Summary:
+Payment controller will receive a request and in that request there will be orderId.
+
+So we are creating services package and PaymentService class
+
+--------------------------------------------------
+
+Unmuted utsav and asking the doubt in call to naman:
+
+Ques by utsav) So basically we are gathering the orderId info from client right?
+Ans by naman) Yes, Correct.
+
+Ques by utsav) On the paymentService or whatever the payment gateway would be, so we can send the order id as well as the amount, since I have suppressed in orderservice db, so how the data gets tampered?
+
+Ans by naman) First of all the thing is that we are coding is a paymentservice not paymentgateway. The payment service is going to call the paymentgateway. Now the amount can be tampered with the if paymentservice is getting the amount from the client if the dto of paymentservice as the amount as well
+
+Ques by naman) (above continue by naman) because then who calls paymentservice?
+Ans by naman) Client calls the paymentservice correct utsav, so client send any amount there. so Client can manipulate the amount value.
+
+Ques by utsav) I thought amount will be channelized via  orderService?
+Ans by naman) No Utsav
+1. client makes request to orderservice, gets the order details.
+2. then client makes a request to paymentService.
+3. orderService doesn't make a request to paymentService
+
+-------------------------------------------------
+In PaymentService.java:
+
+creating a method createPaymentLink().
+
+Q) For a service, do you give DTO or a complete object? For a service, should there be a dto or a complete object?
+A)
+
+Q) What will PaymentService do?
+A) PaymentService only has the orderId. To generates the paymentlink, paymentservice will have to  give all of the information to the paymentgateway. Typically Paymentgateway expects atleast below information
+
+String emailofCustomer=
+String PhoneNumberofCustomer=
+Long amount=
+
+Q) Actually Paymentgateway expects all these 3 informations from the PaymentService. Now the question is how will all these 3 informations comes to the paymentService?
+
+A) From the OrderService. PaymentService internally do like below.
+
+Order order = restClient.get(localhost:9090/orders/{orderId})
+Long userId = order.getUserId()
+User user =  restClient.get(localhost:9000/users/{userId})
+String emailofCustomer = user.getEmail()
+String phoneNumber = user.getPhoneNumber()
+Long amount = user.getTotalamount()
+
+Like how typically all of these details will be fetched by the paymentservice. They will be fetched from the orderDetails.
+
+Q) After all of these details are there, how will be the paymentLink gets generated?
+A) To generate the paymentLink, PaymentService will have to call the Paymentgateway. Now there will be multiple payment gateways, so I will create package called paymentgateways and interface called paymentGateway.
+
+
+-----------------------------------------------------------------------------------------
+
+In PaymentGateway.java Interface:
+
+We are creating generatePaymentLink method
+
+    String generatePaymentLink(Long amount, String email, String phoneNumber) {
+
+        return null;
+    }
+
+We are creating two subpackage under paymentgateways.
+1. stripe
+2. razorpay
+
+Today we are implementing Stripe payment gateway because Stripe is not indian payment gateway and you can immediately got to stripe and create a new account there.
+
+But Razorpay is an Indian Payment Gateway and unfortunately right now rbi has banned most of the indian payment gateway from creating new customer accounts. That's why not able to create new account in razorpay. That's why you are not able to use it.
+
+Todays class we will go for Stripe.
+
+So we are creating StripePaymentGateway class under stripe package.
+
+------------------------------------------------------------------------------
+
+In StripePaymentGateway.java:
+
+Q) Now internally generatePaymentLink() method is going to do what?
+A) This method calls Stripe Payment Gateway API and actually generates the PaymentLink.
+
+Q) How will I call Stripe API?
+A) Go to this URL: https://stripe.com/docs/libraries?locale=en-GB
+and copy java dependency and paste it in pom.xml
+
+Stripe has their own SDK for most of the languages. You don't need to call Stripe APIs directly, Stripe already has packages for most of the languages. If you want to use Stripe for java then you can use their dependency and paste it in pom.xml
+
+<dependency>
+  <groupId>com.stripe</groupId>
+  <artifactId>stripe-java</artifactId>
+  <version>24.0.0</version>
+</dependency>
+
+
+Ques from Vaibhav) What is SDK?
+Ans by Naman) SDK is nothing but library that behind the scenes is doing those http requests ets to the stripe details.
+
+In Reality SDK means source development kit, but in more simpler terms SDK stand for library that is making easy to use interface provided, means that is providing you easy to use for working with the restapi.
+
+-------------------------------------------------------
+
+Stripe:
+
+To create a Payment link, stripe asks you to do two things
+
+1. create a price object
+2. create a payment link for that particular price
